@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     curl \
+    libvips-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Ollama
@@ -24,6 +25,7 @@ RUN npm install
 COPY src/ ./src/
 COPY ethics-prompt.txt ./
 
+
 # Build TypeScript
 RUN npm run build
 
@@ -40,6 +42,8 @@ sleep 10\n\
 # Pull the Moondream model\n\
 echo "Pulling Moondream model..."\n\
 ollama pull moondream:1.8b\n\
+echo "Pulling LLaVA model..."\n\
+ollama pull llava:latest\n\
 \n\
 # Start the Node.js API with dev mode\n\
 echo "Starting API server..."\n\

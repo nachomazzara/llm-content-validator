@@ -57,3 +57,4 @@ temp/
 
 # Do not upload test images
 *.jpg
+*.png

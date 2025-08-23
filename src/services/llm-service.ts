@@ -4,28 +4,35 @@ import { ModerationResponse, LLMRequest, OllamaResponse } from '../types';
 
 export class LLMService {
   private ollamaUrl = 'http://localhost:11434/api/generate';
-  private model = 'moondream:1.8b';
+  private defaultModel = 'moondream:1.8b';
   private systemPrompt: string;
 
   constructor() {
-    this.systemPrompt = fs.readFileSync('./ethics-prompt-short.txt', 'utf8');
+    this.systemPrompt = fs.readFileSync('./ethics-prompt.txt', 'utf8');
   }
 
-  async moderateContent(text?: string, imageBuffer?: Buffer): Promise<ModerationResponse> {
+  async moderateContent(text?: string, imageBuffer?: Buffer, modelName?: string): Promise<ModerationResponse> {
     try {
       const prompt = this.buildPrompt(text);
       const images = imageBuffer ? [imageBuffer.toString('base64')] : undefined;
 
+      const selectedModel = this.getModelName(modelName);
+      
       const request: LLMRequest = {
-        model: this.model,
-        prompt: `${this.systemPrompt}\n\nCONTENT TO ANALYZE: ${prompt}\n\nRespond with JSON only:`,
+        model: selectedModel,
+        prompt: this.systemPrompt.replace('{user_prompt}', prompt),
         images,
-        stream: false
+        stream: false,
+        options: {
+          num_ctx: 2048,
+          temperature: 0.1,
+          num_predict: 256,
+          num_gpu: 1
+        }
       };
 
-      console.log('Sending request to Ollama...');
       const response = await axios.post<OllamaResponse>(this.ollamaUrl, request, {
-        timeout: 15000,
+        timeout: 40000,
         headers: {
           'Content-Type': 'application/json'
         }
@@ -53,30 +60,87 @@ export class LLMService {
   }
 
   private parseResponse(response: string, originalPrompt?: string): ModerationResponse {
+    console.log('Raw response:', response);
+    
+    // Try 1: Parse as-is
     try {
-      const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      
-      let result = {
-        isCompliant: Boolean(parsed.isCompliant),
-        confidence: Number(parsed.confidence) || 0,
-        reason: String(parsed.reason) || 'No reason provided',
-        violations: Array.isArray(parsed.violations) ? parsed.violations : []
-      };
-
-      // Double-check with our own validation
-      if (originalPrompt && this.hasOffensiveContent(originalPrompt)) {
-        result.isCompliant = false;
-        result.confidence = Math.max(result.confidence, 0.9);
-        result.reason = 'Contains offensive language detected by validation';
-        result.violations = ['profanity', 'offensive_language'];
-      }
-      
-      return result;
+      const parsed = JSON.parse(response);
+      return this.buildResult(parsed, originalPrompt);
     } catch (error) {
-      console.error('Failed to parse LLM response:', response);
-      
-      // Fallback analysis for non-JSON responses
+      console.log('Direct JSON parse failed, trying cleanup...');
+    }
+    
+    // Try 2: Basic cleanup
+    try {
+      const cleaned = response
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      const parsed = JSON.parse(cleaned);
+      return this.buildResult(parsed, originalPrompt);
+    } catch (error) {
+      console.log('Basic cleanup failed, trying extraction...');
+    }
+    
+    // Try 3: Extract JSON object
+    try {
+      const jsonMatch = response.match(/{[\s\S]*}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return this.buildResult(parsed, originalPrompt);
+      }
+    } catch (error) {
+      console.log('JSON extraction failed, trying repair...');
+    }
+    
+    // Try 4: Repair truncated JSON
+    try {
+      let partialJson = response.match(/{[^}]*"isCompliant"[^}]*}/)?.[0];
+      if (partialJson && !partialJson.includes('"confidence"')) {
+        partialJson = partialJson.replace('}', ',"confidence":0.8,"reason":"Partial response","violations":[]}');
+      }
+      if (partialJson) {
+        const parsed = JSON.parse(partialJson);
+        return this.buildResult(parsed, originalPrompt);
+      }
+    } catch (error) {
+      console.log('JSON repair failed, using text analysis fallback');
+    }
+    
+    // Fallback: Text analysis
+    return this.textAnalysisFallback(response, originalPrompt);
+  }
+  
+  private buildResult(parsed: any, originalPrompt?: string): ModerationResponse {
+    let result = {
+      isCompliant: Boolean(parsed.isCompliant),
+      confidence: Number(parsed.confidence) || 0,
+        reason: String(parsed.reason) || 'No reason provided',
+      violations: Array.isArray(parsed.violations) ? parsed.violations : []
+    };
+
+    // Double-check with our own validation
+    if (originalPrompt && this.hasOffensiveContent(originalPrompt)) {
+      result.isCompliant = false;
+      result.confidence = Math.max(result.confidence, 0.9);
+      result.reason = 'Contains offensive language detected by validation';
+      result.violations = ['profanity', 'offensive_language'];
+    }
+    
+    return result;
+  }
+  
+  private getModelName(modelName?: string): string {
+    switch(modelName?.toLowerCase()) {
+      case 'llava':
+        return 'llava:latest';
+      case 'moondream':
+      default:
+        return this.defaultModel;
+    }
+  }
+
+  private textAnalysisFallback(response: string, originalPrompt?: string): ModerationResponse {
       const lowerResponse = response.toLowerCase();
       const hasOffensiveWords = lowerResponse.includes('bitch') || 
                                lowerResponse.includes('fuck') || 
@@ -102,7 +166,6 @@ export class LLMService {
         reason: hasViolations ? 'Content contains offensive language or inappropriate material' : 'Content appears appropriate for workplace',
         violations: hasOffensiveWords ? ['profanity', 'offensive_language'] : hasNegativeIndicators ? ['policy_violation'] : []
       };
-    }
   }
 
   private hasOffensiveContent(text: string): boolean {

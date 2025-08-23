@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import sharp from 'sharp';
 import { LLMService } from '../services/llm-service';
 import { ModerationRequest } from '../types';
 
@@ -23,7 +24,7 @@ const llmService = new LLMService();
 router.post('/content-moderate', upload.single('image'), async (req: Request, res: Response) => {
   const startTime = Date.now();
   try {
-    const { text } = req.body as ModerationRequest;
+    const { text, model } = req.body as ModerationRequest;
     const imageFile = req.file;
 
     if (!text && !imageFile) {
@@ -32,16 +33,34 @@ router.post('/content-moderate', upload.single('image'), async (req: Request, re
       });
     }
 
+    // Resize image if provided
+    let processedImageBuffer = imageFile?.buffer;
+    if (imageFile) {
+      console.log('Resizing image from', imageFile.size, 'bytes');
+      processedImageBuffer = await sharp(imageFile.buffer)
+        .resize(512, 512, { 
+          fit: 'inside',
+          withoutEnlargement: true 
+        })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+      console.log('Resized image to', processedImageBuffer?.length || 0, 'bytes');
+    }
+
     console.log('Processing moderation request:', { 
       hasText: !!text, 
       hasImage: !!imageFile,
       textLength: text?.length || 0,
+      originalImageSize: imageFile?.size || 0,
+      resizedImageSize: processedImageBuffer?.length || 0,
+      imageMimetype: imageFile?.mimetype || null,
       startTime: new Date(startTime).toISOString()
     });
 
     const result = await llmService.moderateContent(
       text,
-      imageFile?.buffer
+      processedImageBuffer,
+      model
     );
 
     const endTime = Date.now();

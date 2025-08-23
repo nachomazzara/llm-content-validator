@@ -1,6 +1,7 @@
 export interface ModerationRequest {
   text?: string;
   image?: Express.Multer.File;
+  model?: 'moondream' | 'llava';
 }
 
 export interface ModerationResponse {
@@ -22,4 +23,10 @@ export interface LLMRequest {
   prompt: string;
   images?: string[];
   stream: boolean;
+  options?: {
+    num_ctx?: number;
+    temperature?: number;
+    num_predict?: number;
+    num_gpu?: number;
+  };
 }

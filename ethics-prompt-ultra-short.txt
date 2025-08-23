@@ -1,7 +1,0 @@
-Content moderation rules:
-- NO profanity or offensive language
-- NO discrimination or harassment 
-- NO hate content (Hitler, Nazis, racist symbols)
-- Professional workplace appropriate only
-
-Respond JSON: {"isCompliant":true/false,"confidence":0-1,"reason":"text","violations":[]}

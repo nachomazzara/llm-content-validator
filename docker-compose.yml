@@ -12,6 +12,7 @@ services:
       - ollama_data:/root/.ollama
       - ./src:/app/src
       - ./ethics-prompt.txt:/app/ethics-prompt.txt
+      - ./ethics-prompt-short.txt:/app/ethics-prompt-short.txt
       - ./ethics-prompt-ultra-short.txt:/app/ethics-prompt-ultra-short.txt
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
