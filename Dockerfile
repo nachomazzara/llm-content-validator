@@ -37,8 +37,8 @@ OLLAMA_PID=$!\n\
 echo "Waiting for Ollama to start..."\n\
 sleep 10\n\
 \n\
-# Pull the Phi3-Vision model\n\
-echo "Pulling Phi3-Vision model..."\n\
+# Pull the Moondream model\n\
+echo "Pulling Moondream model..."\n\
 ollama pull moondream:1.8b\n\
 \n\
 # Start the Node.js API with dev mode\n\

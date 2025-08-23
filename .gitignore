@@ -54,3 +54,6 @@ Thumbs.db
 # Temporary folders
 tmp/
 temp/
+
+# Do not upload test images
+*.jpg

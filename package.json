@@ -1,7 +1,7 @@
 {
   "name": "content-moderation-api",
   "version": "1.0.0",
-  "description": "AI-powered content moderation API using open source LLMs",
+  "description": "AI-powered content moderation API using Moondream vision model",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
