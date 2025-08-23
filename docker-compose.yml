@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  content-moderation:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_HOST=127.0.0.1:11434
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./src:/app/src
+      - ./ethics-prompt.txt:/app/ethics-prompt.txt
+      - ./ethics-prompt-ultra-short.txt:/app/ethics-prompt-ultra-short.txt
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+volumes:
+  ollama_data:
