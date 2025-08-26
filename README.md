@@ -1,10 +1,10 @@
 # Content Moderation API
 
-AI-powered content moderation service using Moondream for analyzing text and images against corporate ethics guidelines.
+AI-powered content moderation service using Moondream and LLaVA models for analyzing text and images against corporate ethics guidelines.
 
 ## Features
 
-- ⚡ Ultra-fast LLM (Moondream 1.8B) - ~400-800ms response times  
+- ⚡ Ultra-fast LLMs (Moondream 1.8B, LLaVA 7B) - ~400-800ms response times  
 - 🖼️ Multimodal support (text + images)
 - 🐳 Single Docker container deployment
 - 🚀 Express.js TypeScript API
@@ -50,6 +50,7 @@ npm run dev
 **Body**:
 - `text` (optional): Text content to moderate
 - `image` (optional): Image file to analyze
+- `model` (optional): Model to use ('moondream' | 'llava'). Defaults to 'moondream'
 
 **Supported Image Formats**:
 - PNG (`.png`)
@@ -85,23 +86,46 @@ npm run dev
 
 ## Examples
 
-### Text only
+### Text only (default Moondream model)
 ```bash
 curl -X POST http://localhost:3000/api/content-moderate \
   -F "text=This is a professional business proposal"
 ```
 
-### Image only  
+### Text with LLaVA model
+```bash
+curl -X POST http://localhost:3000/api/content-moderate \
+  -F "text=This is a professional business proposal" \
+  -F "model=llava"
+```
+
+### Image only (default Moondream model)
 ```bash
 curl -X POST http://localhost:3000/api/content-moderate \
   -F "image=@screenshot.png"
 ```
 
-### Text + Image
+### Image with LLaVA model
+```bash
+curl -X POST http://localhost:3000/api/content-moderate \
+  -F "image=@screenshot.png" \
+  -F "model=llava"
+```
+
+### Text + Image with Moondream
 ```bash
 curl -X POST http://localhost:3000/api/content-moderate \
   -F "text=Check out this design" \
-  -F "image=@design.jpg"
+  -F "image=@design.jpg" \
+  -F "model=moondream"
+```
+
+### Text + Image with LLaVA
+```bash
+curl -X POST http://localhost:3000/api/content-moderate \
+  -F "text=Check out this design" \
+  -F "image=@design.jpg" \
+  -F "model=llava"
 ```
 
 ## AWS Deployment
